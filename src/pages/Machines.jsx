@@ -116,14 +116,7 @@ const Machines = () => {
     fetchMasterSheetData();
   }, []);
 
-  if (selectedMachine) {
-    return (
-      <MachineDetails
-        machine={selectedMachine}
-        goBack={() => setSelectedMachine(null)}
-      />
-    );
-  }
+
 
   const handleSort = (column) => {
     if (sortColumn === column) {
@@ -183,6 +176,15 @@ const Machines = () => {
     setShowResultsCount(hasActiveSearch || hasActiveDepartment);
     setResultsCount(filteredMachines.length);
   }, [searchTerm, selectedDepartment, filteredMachines.length]);
+
+  if (selectedMachine) {
+    return (
+      <MachineDetails
+        machine={selectedMachine}
+        goBack={() => setSelectedMachine(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
