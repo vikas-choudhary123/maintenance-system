@@ -177,14 +177,14 @@ const Dashboard = () => {
     // Create a map of machine names to their total maintenance costs
     // Only include tasks where both "Task Start Date" and "Actual Date" are not null
     const maintenanceCostsByMachine = {};
-    
+
     maintenanceCompletedTasks.forEach((task) => {
-      if (task["Serial No"] && 
-          task["Maintenace Cost"] && 
-          task["Task Start Date"] && 
-          task["Actual Date"] &&
-          task["Task Start Date"] !== "" && 
-          task["Actual Date"] !== "") {
+      if (task["Serial No"] &&
+        task["Maintenace Cost"] &&
+        task["Task Start Date"] &&
+        task["Actual Date"] &&
+        task["Task Start Date"] !== "" &&
+        task["Actual Date"] !== "") {
         const machineName = task["Serial No"];
         const maintenanceCost = parseFloat(task["Maintenace Cost"]) || 0;
 
@@ -292,10 +292,10 @@ const Dashboard = () => {
       </div>
 
       {/* Summary Stats for maintenance */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         <div className="bg-white rounded-xl shadow p-6 flex items-start">
-          <div className="p-3 rounded-full bg-blue-100 mr-4">
-            <Wrench size={24} className="text-blue-600" />
+          <div className="p-1 rounded-full bg-blue-100 mr-4">
+            <Wrench size={20} className="text-blue-600" />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Total Machines</p>
@@ -310,8 +310,8 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow p-6 flex items-start">
-          <div className="p-3 rounded-full bg-indigo-100 mr-4">
-            <Calendar size={24} className="text-indigo-600" />
+          <div className="p-1 rounded-full bg-indigo-100 mr-4">
+            <Calendar size={20} className="text-indigo-600" />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">
@@ -328,8 +328,8 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow p-6 flex items-start">
-          <div className="p-3 rounded-full bg-green-100 mr-4">
-            <CheckCircle size={24} className="text-green-600" />
+          <div className="p-1 rounded-full bg-green-100 mr-4">
+            <CheckCircle size={20} className="text-green-600" />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">
@@ -346,8 +346,8 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow p-6 flex items-start">
-          <div className="p-3 rounded-full bg-amber-100 mr-4">
-            <Clock size={24} className="text-amber-600" />
+          <div className="p-1 rounded-full bg-amber-100 mr-4">
+            <Clock size={20} className="text-amber-600" />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">
@@ -364,8 +364,8 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow p-6 flex items-start">
-          <div className="p-3 rounded-full bg-red-100 mr-4">
-            <AlertTriangle size={24} className="text-red-600" />
+          <div className="p-1 rounded-full bg-red-100 mr-4">
+            <AlertTriangle size={20} className="text-red-600" />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">
@@ -382,8 +382,8 @@ const Dashboard = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow p-6 flex items-start">
-          <div className="p-3 rounded-full bg-purple-100 mr-4">
-            <DollarSign size={24} className="text-purple-600" />
+          <div className="p-1 rounded-full bg-purple-100 mr-4">
+            <DollarSign size={20} className="text-purple-600" />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Total Cost</p>

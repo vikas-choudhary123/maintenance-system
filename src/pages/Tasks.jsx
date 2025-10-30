@@ -28,16 +28,61 @@ const Tasks = () => {
   const [activeTab, setActiveTab] = useState("maintenance");
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [error, setError] = useState(null);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
   const SCRIPT_URL =
     "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
   const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
 
+  // Fetch departments from Master sheet column B
+  const fetchDepartments = async () => {
+    setLoadingDepartments(true);
+    try {
+      const response = await axios.get(
+        `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=Master`
+      );
+
+      const masterData = response?.data?.table;
+
+      if (masterData && masterData.rows) {
+        const departments = [];
+
+        // Process each row to extract column B values
+        masterData.rows.forEach((row) => {
+          if (row.c && row.c[1]) { // Column B is index 1 (0-based)
+            const departmentValue = row.c[1].v;
+            if (departmentValue && departmentValue.toString().trim() !== "") {
+              departments.push(departmentValue.toString().trim());
+            }
+          }
+        });
+
+        // Remove duplicates and sort
+        const uniqueDepartments = [...new Set(departments)].sort();
+        setDepartmentOptions(uniqueDepartments);
+        console.log('Fetched departments:', uniqueDepartments);
+      } else {
+        console.warn('No department data found in Master sheet');
+        setDepartmentOptions([]);
+      }
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      setDepartmentOptions([]);
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
   useEffect(() => {
     const fetchTasks = async () => {
       setLoadingTasks(true);
       setError(null);
-      
+
       try {
         const [maintenanceRes, repairRes] = await Promise.all([
           axios.get(
@@ -90,7 +135,7 @@ const Tasks = () => {
 
   const formatSheetData = (sheetData) => {
     console.log('Processing sheet data:', sheetData);
-    
+
     // Add safety checks
     if (!sheetData || !sheetData.cols || !sheetData.rows) {
       console.warn('Invalid sheet data structure:', sheetData);
@@ -131,7 +176,7 @@ const Tasks = () => {
 
   const filteredTasks = rawTasks.filter((task) => {
     if (!task) return false;
-    
+
     const departmentMatch =
       selectedDepartment === "all" ||
       task["Department"]?.toLowerCase() === selectedDepartment.toLowerCase();
@@ -161,14 +206,14 @@ const Tasks = () => {
 
     tasks.forEach((task) => {
       if (!task) return; // Skip null/undefined tasks
-      
+
       const machineName = task["Machine Name"];
       const serialNo = task["Serial No"];
       const actualDate = task["Actual Date"];
-      
+
       // Skip tasks without essential data
       if (!machineName || !serialNo) return;
-      
+
       // Create unique key combining machine name and serial number
       const uniqueKey = `${machineName}|${serialNo}`;
 
@@ -195,9 +240,6 @@ const Tasks = () => {
 
     return Array.from(machineSerialMap.values());
   };
-
-  // Get unique departments for filter
-  const departments = [...new Set(rawTasks.map(task => task["Department"]).filter(Boolean))];
 
   return (
     <div className="space-y-6">
@@ -239,11 +281,18 @@ const Tasks = () => {
               className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
+              disabled={loadingDepartments}
             >
               <option value="all">All Departments</option>
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
+              {loadingDepartments ? (
+                <option>Loading departments...</option>
+              ) : (
+                departmentOptions.map((dept, index) => (
+                  <option key={index} value={dept}>
+                    {dept}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>
@@ -251,11 +300,10 @@ const Tasks = () => {
 
       <div className="flex space-x-4 mb-4">
         <button
-          className={`px-4 py-2 rounded-md ${
-            activeTab === "maintenance"
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-200 text-gray-700"
-          }`}
+          className={`px-4 py-2 rounded-md ${activeTab === "maintenance"
+            ? "bg-indigo-600 text-white"
+            : "bg-gray-200 text-gray-700"
+            }`}
           onClick={() => setActiveTab("maintenance")}
         >
           Maintenance ({maintenanceTasks.length})

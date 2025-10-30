@@ -16,7 +16,6 @@ import MachineDetails from "./MachineDetails";
 import NewMachine from "./NewMachine";
 import AssignTask from "./AssignTask";
 
-
 const Machines = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState("name");
@@ -27,7 +26,8 @@ const Machines = () => {
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [loaderMasterSheetData, setLoaderMasterSheetData] = useState(false);
-  // console.log("sheetData", sheetData);
+  const [showResultsCount, setShowResultsCount] = useState(false);
+  const [resultsCount, setResultsCount] = useState(0);
 
   const SCRIPT_URL =
     "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
@@ -44,23 +44,20 @@ const Machines = () => {
       );
       const result = await res.json();
 
-      // console.log("data", result);
-
       if (result.success && result.table) {
-        const headers = result.table.cols.map((col) => col.label); // Extract headers
+        const headers = result.table.cols.map((col) => col.label);
         const rows = result.table.rows;
 
-        // Transform rows into objects with key-value pairs
         const formattedRows = rows.map((rowObj) => {
           const row = rowObj.c;
           const rowData = {};
           row.forEach((cell, i) => {
-            rowData[headers[i]] = cell.v; // you can also use `cell.f` if you want formatted version
+            rowData[headers[i]] = cell.v;
           });
           return rowData;
         });
 
-        setSheetData(formattedRows); // Set formatted data into state
+        setSheetData(formattedRows);
       } else {
         console.error("Server error:", result.message || result.error);
       }
@@ -84,7 +81,6 @@ const Machines = () => {
         const headers = result.table.cols.map((col) => col.label);
         const rows = result.table.rows || [];
 
-        // Transform rows into objects
         const formattedRows = rows.map((rowObj) => {
           const row = rowObj.c || [];
           const rowData = {};
@@ -96,7 +92,6 @@ const Machines = () => {
           return rowData;
         });
 
-        // Extract unique departments from column B
         const departments = formattedRows
           .map((row) => {
             const columnBValue = Object.values(row)[1];
@@ -121,10 +116,6 @@ const Machines = () => {
     fetchMasterSheetData();
   }, []);
 
-  useEffect(() => {
-    fetchSheetData();
-  }, []);
-
   if (selectedMachine) {
     return (
       <MachineDetails
@@ -141,6 +132,15 @@ const Machines = () => {
       setSortColumn(column);
       setSortDirection("asc");
     }
+  };
+
+  const handleSearch = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+  };
+
+  const handleDepartmentChange = (value) => {
+    setSelectedDepartment(value);
   };
 
   const filteredMachines = sheetData
@@ -175,7 +175,14 @@ const Machines = () => {
       return 0;
     });
 
+  // Show results count when either search or dropdown filter is active
+  useEffect(() => {
+    const hasActiveSearch = searchTerm.trim() !== "";
+    const hasActiveDepartment = selectedDepartment !== "all";
 
+    setShowResultsCount(hasActiveSearch || hasActiveDepartment);
+    setResultsCount(filteredMachines.length);
+  }, [searchTerm, selectedDepartment, filteredMachines.length]);
 
   return (
     <div className="space-y-6">
@@ -199,13 +206,22 @@ const Machines = () => {
               placeholder="Search machines..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearch}
             />
             <Search
               size={20}
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
             />
           </div>
+
+          {/* Results Count Button - Shows for both search and dropdown filters */}
+          {showResultsCount && (
+            <div className="ml-3 flex items-center">
+              <button className="px-3 py-2 bg-blue-100 text-blue-800 text-sm font-medium rounded-lg border border-blue-200 hover:bg-blue-200 transition-colors">
+                Results: {resultsCount}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-4">
@@ -214,7 +230,7 @@ const Machines = () => {
             <select
               className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
+              onChange={(e) => handleDepartmentChange(e.target.value)}
               disabled={loaderMasterSheetData}
             >
               <option value="all">All Departments</option>
@@ -224,7 +240,6 @@ const Machines = () => {
                 </option>
               ))}
             </select>
-
           </div>
         </div>
       </div>
@@ -334,9 +349,6 @@ const Machines = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     {machine["Department"]}
                   </td>
-                  {/* <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(machine["Status"])}
-                  </td> */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
                       {new Date(
