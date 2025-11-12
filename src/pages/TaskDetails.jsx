@@ -44,7 +44,7 @@ const fetchPendingTasksFromBackend = async () => {
     const encodedSerial = encodeURIComponent(serialNo);
 
     const res = await axios.get(
-      `http://localhost:5050/api/task-details/pending/${encodedMachine}?serialNo=${encodedSerial}`
+      `http://18.60.212.185:5050/api/task-details/pending/${encodedMachine}?serialNo=${encodedSerial}`
     );
 
     if (res.data.success) {
@@ -71,7 +71,7 @@ const fetchCompletedTasksFromBackend = async () => {
     const encodedSerial = encodeURIComponent(serialNo);
 
     const res = await axios.get(
-      `http://localhost:5050/api/task-details/completed/${encodedMachine}?serialNo=${encodedSerial}`
+      `http://18.60.212.185:5050/api/task-details/completed/${encodedMachine}?serialNo=${encodedSerial}`
     );
 
     if (res.data.success) {
@@ -351,7 +351,7 @@ if (imageFiles[taskNo]) {
 }
 
 const res = await axios.put(
-  `http://localhost:5050/api/task-details/${taskNo}`,
+  `http://18.60.212.185:5050/api/task-details/${taskNo}`,
   formData,
   {
     headers: { "Content-Type": "multipart/form-data" },

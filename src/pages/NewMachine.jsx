@@ -20,7 +20,7 @@ const NewMachine = () => {
   const FOLDER_ID = "1ZMn-mLYxW3_RW4tCgMgesSet6ShgT1kS";
 
 
-const API_URL = "http://localhost:5050/api/machines";
+const API_URL = "http://18.60.212.185:5050/api/machines";
 
 
   const [formValues, setFormValues] = useState({
@@ -107,7 +107,7 @@ const API_URL = "http://localhost:5050/api/machines";
 const fetchMasterSheetData = useCallback(async () => {
   try {
     setLoaderMasterSheetData(true);
-    const res = await fetch("http://localhost:5050/api/departments");
+    const res = await fetch("http://18.60.212.185:5050/api/departments");
     const result = await res.json();
 
     if (result.success && Array.isArray(result.data)) {
@@ -308,7 +308,7 @@ const handleSubmit = async (e) => {
       const fileForm = new FormData();
       fileForm.append("file", file);
 
-      const uploadRes = await fetch("http://localhost:5050/api/upload", {
+      const uploadRes = await fetch("http://18.60.212.185:5050/api/upload", {
   method: "POST",
   body: fileForm,
 });

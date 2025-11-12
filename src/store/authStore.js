@@ -134,7 +134,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import toast from "react-hot-toast";
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
+const BACKEND_URL = import.meta.env.VITE_API_URL || "http://18.60.212.185:5050";
 
 const useAuthStore = create(
   persist(

@@ -36,7 +36,7 @@ const Machines = () => {
 
   const [loaderSheetData, setLoaderSheetData] = useState(false);
 
-const API_URL = "http://localhost:5050/api/machines";
+const API_URL = "http://18.60.212.185:5050/api/machines";
 
 const fetchSheetData = async () => {
   try {
@@ -72,7 +72,7 @@ const fetchSheetData = async () => {
 const fetchMasterSheetData = async () => {
   try {
     setLoaderMasterSheetData(true);
-    const res = await fetch("http://localhost:5050/api/master"); // 👈 new backend route
+    const res = await fetch("http://18.60.212.185:5050/api/master"); // 👈 new backend route
     const result = await res.json();
 
     if (result.success && result.table) {

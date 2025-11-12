@@ -71,7 +71,7 @@ function AssignTask() {
 const fetchMachinesByDepartment = async (department) => {
   try {
     const res = await fetch(
-      `http://localhost:5050/api/form-responses?department=${department}`
+      `http://18.60.212.185:5050/api/form-responses?department=${department}`
     );
     const result = await res.json();
 
@@ -123,7 +123,7 @@ const handleMachineChange = async (machineName) => {
 
   try {
     const res = await fetch(
-      `http://localhost:5050/api/form-responses?department=${selectedDepartment}&machine_name=${machineName}`
+      `http://18.60.212.185:5050/api/form-responses?department=${selectedDepartment}&machine_name=${machineName}`
     );
     const result = await res.json();
 
@@ -143,7 +143,7 @@ const handleMachineChange = async (machineName) => {
   // 🧠 Fetch dropdown data from backend API (Postgres)
 const fetchDropdownData = async () => {
   try {
-    const res = await fetch("http://localhost:5050/api/dropdown");
+    const res = await fetch("http://18.60.212.185:5050/api/dropdown");
     const result = await res.json();
 
     if (result.success && result.data) {
@@ -172,7 +172,7 @@ const fetchDropdownData = async () => {
 
 // const fetchWorkingDaysCalendar = async () => {
 //   try {
-//     const res = await fetch("http://localhost:5050/api/working-days");
+//     const res = await fetch("http://18.60.212.185:5050/api/working-days");
 //     const result = await res.json();
 
 //     if (result.success && result.data.length > 0) {
@@ -222,7 +222,7 @@ const fetchDropdownData = async () => {
 // Machine list and department data now come from backend
 const fetchSheetData = async () => {
   try {
-    const res = await fetch("http://localhost:5050/api/form-responses");
+    const res = await fetch("http://18.60.212.185:5050/api/form-responses");
     const result = await res.json();
     if (result.success && result.data) {
       setSheetData(result.data);
@@ -234,7 +234,7 @@ const fetchSheetData = async () => {
 
 const fetchWorkingDaysCalendar = async () => {
   try {
-    const res = await fetch("http://localhost:5050/api/working-days");
+    const res = await fetch("http://18.60.212.185:5050/api/working-days");
     const result = await res.json();
     if (result.success && result.data) {
       setWorkingDaysData(result.data);
@@ -719,7 +719,7 @@ const workingDays = workingDaysData.map(
     setLoaderSubmit(true);
 
     // 🧠 Backend API endpoint (change to your deployed URL if needed)
-    const API_URL = "http://localhost:5050/api/maintenance-tasks";
+    const API_URL = "http://18.60.212.185:5050/api/maintenance-tasks";
 
     // ✅ MAINTENANCE type submission
     if (selectedTaskType === "Maintenance") {
@@ -788,7 +788,7 @@ const workingDays = workingDaysData.map(
 
     // ✅ REPAIR type submission
     else if (selectedTaskType === "Repair") {
-      const REPAIR_API_URL = "http://localhost:5050/api/repair-tasks"; // optional route if you make one
+      const REPAIR_API_URL = "http://18.60.212.185:5050/api/repair-tasks"; // optional route if you make one
 
       const payload = {
         task_no: `RP-${Date.now()}`,

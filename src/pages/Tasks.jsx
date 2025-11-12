@@ -40,7 +40,7 @@ const Tasks = () => {
   const fetchDepartments = async () => {
     setLoadingDepartments(true);
     try {
-      const response = await axios.get("http://localhost:5050/api/departments");
+      const response = await axios.get("http://18.60.212.185:5050/api/departments");
       const departments = response.data;
       
       if (departments && departments.length > 0) {
@@ -70,7 +70,7 @@ useEffect(() => {
 
     try {
       // Fetch pending tasks from your backend
-      const pendingTasksResponse = await axios.get("http://localhost:5050/api/tasks/pending");
+      const pendingTasksResponse = await axios.get("http://18.60.212.185:5050/api/tasks/pending");
       const responseData = pendingTasksResponse.data;
 
       console.log('Full backend response:', responseData);
