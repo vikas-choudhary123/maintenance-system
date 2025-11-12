@@ -36,34 +36,19 @@ const Tasks = () => {
   const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
 
   // Fetch departments from Master sheet column B
+  // Fetch departments from backend API
   const fetchDepartments = async () => {
     setLoadingDepartments(true);
     try {
-      const response = await axios.get(
-        `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=Master`
-      );
-
-      const masterData = response?.data?.table;
-
-      if (masterData && masterData.rows) {
-        const departments = [];
-
-        // Process each row to extract column B values
-        masterData.rows.forEach((row) => {
-          if (row.c && row.c[1]) { // Column B is index 1 (0-based)
-            const departmentValue = row.c[1].v;
-            if (departmentValue && departmentValue.toString().trim() !== "") {
-              departments.push(departmentValue.toString().trim());
-            }
-          }
-        });
-
-        // Remove duplicates and sort
+      const response = await axios.get("http://localhost:5050/api/departments");
+      const departments = response.data;
+      
+      if (departments && departments.length > 0) {
         const uniqueDepartments = [...new Set(departments)].sort();
         setDepartmentOptions(uniqueDepartments);
         console.log('Fetched departments:', uniqueDepartments);
       } else {
-        console.warn('No department data found in Master sheet');
+        console.warn('No department data found');
         setDepartmentOptions([]);
       }
     } catch (error) {
@@ -78,60 +63,73 @@ const Tasks = () => {
     fetchDepartments();
   }, []);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      setLoadingTasks(true);
-      setError(null);
+useEffect(() => {
+  const fetchTasks = async () => {
+    setLoadingTasks(true);
+    setError(null);
 
-      try {
-        const [maintenanceRes, repairRes] = await Promise.all([
-          axios.get(
-            `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=Maitenance%20Task%20Assign`
-          ),
-          axios.get(
-            `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=Repair%20Task%20Assign`
-          ),
-        ]);
+    try {
+      // Fetch pending tasks from your backend
+      const pendingTasksResponse = await axios.get("http://localhost:5050/api/tasks/pending");
+      const responseData = pendingTasksResponse.data;
 
-        // Add safety checks for the API responses
-        const maintenanceData = maintenanceRes?.data?.table;
-        const repairData = repairRes?.data?.table;
+      console.log('Full backend response:', responseData);
 
-        console.log('Maintenance API Response:', maintenanceRes.data);
-        console.log('Repair API Response:', repairRes.data);
-
-        if (maintenanceData) {
-          const formattedMaintenance = formatSheetData(maintenanceData);
-          if (formattedMaintenance && formattedMaintenance.length > 0) {
-            setMaintenanceTasks(
-              getFirstPendingOrLatestCompletedPerMachineAndSerial(formattedMaintenance)
-            );
-          }
-        } else {
-          console.warn('No maintenance data received from API');
-        }
-
-        if (repairData) {
-          const formattedRepair = formatSheetData(repairData);
-          if (formattedRepair && formattedRepair.length > 0) {
-            setRepairTasks(
-              getFirstPendingOrLatestCompletedPerMachineAndSerial(formattedRepair)
-            );
-          }
-        } else {
-          console.warn('No repair data received from API');
-        }
-
-      } catch (error) {
-        console.error("Error fetching tasks:", error);
-        setError(`Failed to load tasks: ${error.message}`);
-      } finally {
-        setLoadingTasks(false);
+      // Handle different response formats
+      let pendingTasks = [];
+      
+      if (Array.isArray(responseData)) {
+        // If response is directly an array
+        pendingTasks = responseData;
+      } else if (responseData && Array.isArray(responseData.tasks)) {
+        // If response has a tasks property that is an array
+        pendingTasks = responseData.tasks;
+      } else if (responseData && Array.isArray(responseData.data)) {
+        // If response has a data property that is an array
+        pendingTasks = responseData.data;
+      } else if (responseData && typeof responseData === 'object') {
+        // If it's a single task object, wrap it in an array
+        pendingTasks = [responseData];
       }
-    };
 
-    fetchTasks();
-  }, []);
+      console.log('Processed pending tasks:', pendingTasks);
+
+      if (pendingTasks && pendingTasks.length > 0) {
+        // Transform backend data to match frontend format
+        const formattedTasks = pendingTasks.map(task => ({
+          "Task No": task.task_no || task.taskNo || task["Task_No"] || "N/A",
+          "Serial No": task.serial_no || task.serialNo || task["Serial_No"] || "N/A",
+          "Machine Name": task.machine_name || task.machineName || task["Machine_Name"] || "N/A",
+          "Department": task.department || "N/A",
+          "Doer Name": task.doer_name || task.doerName || task["Doer_Name"] || "Unassigned",
+          "Priority": task.priority || "N/A",
+          "Task Type": task.task_type || task.taskType || task["Task_Type"] || "N/A",
+          "Task Status": task.task_status || task.taskStatus || task["Task_Status"] || "N/A",
+          "Task Start Date": task.task_start_date || task.taskStartDate || task["Task_Start_Date"] || "N/A",
+          "Actual Date": task.actual_date || task.actualDate || task["Actual_Date"] || "",
+          "Description": task.description || "",
+          "Given By": task.given_by || task.givenBy || task["Given_By"] || "N/A",
+          "Location": task.location || "N/A"
+        }));
+
+        setMaintenanceTasks(formattedTasks);
+        setRepairTasks([]);
+      } else {
+        console.warn('No pending tasks received from backend');
+        setMaintenanceTasks([]);
+        setRepairTasks([]);
+      }
+
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      setError(`Failed to load tasks: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  fetchTasks();
+}, []);
 
   const formatSheetData = (sheetData) => {
     console.log('Processing sheet data:', sheetData);

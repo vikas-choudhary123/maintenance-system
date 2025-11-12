@@ -29,10 +29,67 @@ const TaskDetails = () => {
   const [temperatures, setTemperatures] = useState({});
   const [taskProgress, setTaskProgress] = useState(0);
 
-  const SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
-  const SHEET_ID = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
-  const FOLDER_ID = "1ZhOeYs23CGHCs6REfMGVPgMGG3PQ2jzp";
+  // const SCRIPT_URL =
+  //   "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
+  // const SHEET_ID = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
+  // const FOLDER_ID = "1ZhOeYs23CGHCs6REfMGVPgMGG3PQ2jzp";
+
+const fetchPendingTasksFromBackend = async () => {
+  try {
+    setLoading(true);
+
+    // Make sure machineName or taskNo is known first
+    let machine = machineName || "demo2"; // fallback if not yet set
+    const encodedMachine = encodeURIComponent(machine);
+    const encodedSerial = encodeURIComponent(serialNo);
+
+    const res = await axios.get(
+      `http://localhost:5050/api/task-details/pending/${encodedMachine}?serialNo=${encodedSerial}`
+    );
+
+    if (res.data.success) {
+      console.log("✅ Pending tasks from backend:", res.data.data);
+      setPendingTasks(res.data.data || []);
+    } else {
+      console.error("❌ Backend error:", res.data.error);
+      toast.error(res.data.error || "Failed to fetch pending tasks");
+    }
+  } catch (error) {
+    console.error("❌ Error fetching pending tasks:", error);
+    toast.error("Backend connection failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+const fetchCompletedTasksFromBackend = async () => {
+  try {
+    setLoading(true);
+    let machine = machineName || "demo2"; // fallback
+    const encodedMachine = encodeURIComponent(machine);
+    const encodedSerial = encodeURIComponent(serialNo);
+
+    const res = await axios.get(
+      `http://localhost:5050/api/task-details/completed/${encodedMachine}?serialNo=${encodedSerial}`
+    );
+
+    if (res.data.success) {
+      console.log("✅ Completed tasks:", res.data.data);
+      setCompletedTasks(res.data.data || []);
+    } else {
+      console.error("❌ Backend error:", res.data.error);
+      toast.error(res.data.error || "Failed to fetch completed tasks");
+    }
+  } catch (error) {
+    console.error("❌ Error fetching completed tasks:", error);
+    toast.error("Backend connection failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const fetchMachineRelatedTasks = async () => {
     setLoading(true);
@@ -120,9 +177,12 @@ const TaskDetails = () => {
     }
   };
 
-  useEffect(() => {
-    fetchMachineRelatedTasks();
-  }, [taskNo, serialNo]);
+useEffect(() => {
+  fetchPendingTasksFromBackend();
+  fetchCompletedTasksFromBackend();
+}, [taskNo, serialNo]);
+
+
 
   const handleCheckboxChange = (taskNo) => {
     setCheckedItems((prev) => ({
@@ -236,127 +296,124 @@ const TaskDetails = () => {
     });
   };
 
-  const handleSubmit = async (taskNo) => {
-    setSubmittingTasks((prev) => ({ ...prev, [taskNo]: true }));
+const handleSubmit = async (taskNo) => {
+  setSubmittingTasks((prev) => ({ ...prev, [taskNo]: true }));
 
-    try {
-      const task = allRelatedTasks.find((t) => t["Task No"] === taskNo);
-      if (!task) {
-        toast.error("Task not found");
-        return;
-      }
-
-      let imgRes = "";
-      let fileName = "";
-      let fileType = "";
-      if (imageFiles[taskNo]) {
-        imgRes = await uploadFileToDrive(imageFiles[taskNo]);
-        fileName = imageFiles[taskNo].name;
-        fileType = fileName.split(".").pop().toLowerCase();
-      }
-
-      const payload =
-        taskType === "Maintence"
-          ? {
-            sheetId: SHEET_ID,
-            sheetName: taskNo.startsWith("TM")
-              ? "Maitenance Task Assign"
-              : "Repair Task Assign",
-            action: "update",
-            taskNo: taskNo,
-            "Task Status": taskStatuses[taskNo],
-            Remarks: remarks[taskNo] || "",
-            "Maintenace Cost": repairCosts[taskNo] || "",
-            "Sound Status": soundStatuses[taskNo] || "",
-            "Temperature Status": temperatures[taskNo] || "",
-            ...(imgRes && {
-              "Image Link": imgRes,
-              "File Name": fileName,
-              "File Type": fileType,
-            }),
-          }
-          : {
-            sheetId: SHEET_ID,
-            sheetName: taskNo.startsWith("TM")
-              ? "Maitenance Task Assign"
-              : "Repair Task Assign",
-            action: "update",
-            taskNo: taskNo,
-            "Task Status": taskStatuses[taskNo],
-            Remarks: remarks[taskNo] || "",
-            "Repair Cost": repairCosts[taskNo] || "",
-            "Sound Status": soundStatuses[taskNo] || "",
-            "Temperature Status": temperatures[taskNo] || "",
-            ...(imgRes && {
-              "Image Link": imgRes,
-              "File Name": fileName,
-              "File Type": fileType,
-            }),
-          };
-
-      if (taskStatuses[taskNo] === "Yes") {
-        payload["Actual Date"] = new Date().toISOString().split("T")[0];
-      }
-
-      const response = await axios.post(SCRIPT_URL, payload, {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      });
-
-      if (response.data.success) {
-        toast.success("Task updated successfully");
-        fetchMachineRelatedTasks();
-
-        setCheckedItems((prev) => {
-          const newChecked = { ...prev };
-          delete newChecked[taskNo];
-          return newChecked;
-        });
-        setTaskStatuses((prev) => {
-          const newStatuses = { ...prev };
-          delete newStatuses[taskNo];
-          return newStatuses;
-        });
-        setRemarks((prev) => {
-          const newRemarks = { ...prev };
-          delete newRemarks[taskNo];
-          return newRemarks;
-        });
-        setImageFiles((prev) => {
-          const newFiles = { ...prev };
-          delete newFiles[taskNo];
-          return newFiles;
-        });
-        setRepairCosts((prev) => {
-          const newCosts = { ...prev };
-          delete newCosts[taskNo];
-          return newCosts;
-        });
-        setSoundStatuses((prev) => {
-          const newSounds = { ...prev };
-          delete newSounds[taskNo];
-          return newSounds;
-        });
-        setTemperatures((prev) => {
-          const newTemps = { ...prev };
-          delete newTemps[taskNo];
-          return newTemps;
-        });
-      } else {
-        toast.error(response.data.error || "Failed to update task");
-      }
-    } catch (error) {
-      console.error("Error submitting task:", error);
-      toast.error(error.response?.data?.error || "Error updating task");
-    } finally {
-      setSubmittingTasks((prev) => {
-        const newState = { ...prev };
-        delete newState[taskNo];
-        return newState;
-      });
+  try {
+    const task = pendingTasks.find((t) => t.task_no === taskNo);
+    if (!task) {
+      toast.error("Task not found");
+      return;
     }
-  };
+
+    // Optional file upload (if you still use Google Drive)
+    let imgRes = "";
+    let fileName = "";
+    let fileType = "";
+
+    if (imageFiles[taskNo]) {
+      const file = imageFiles[taskNo];
+      fileName = file.name;
+      fileType = file.name.split(".").pop().toLowerCase();
+
+      // (Optional) Upload to your Google Script or local API
+      imgRes = await uploadFileToDrive(file);
+    }
+
+    // ✅ Prepare payload for backend
+    const payload = {
+      task_status: taskStatuses[taskNo] || "",
+      remarks: remarks[taskNo] || "",
+      sound_status: soundStatuses[taskNo] || "",
+      temperature_status: temperatures[taskNo] || "",
+      maintenance_cost: repairCosts[taskNo] || "",
+      ...(imgRes && {
+        image_link: imgRes,
+        file_name: fileName,
+        file_type: fileType,
+      }),
+    };
+
+    // ✅ Add Actual_Date if task is marked as done
+    if (payload.task_status === "Yes") {
+      payload.actual_date = new Date().toISOString().split("T")[0];
+    }
+
+    // ✅ Send PUT request to backend
+const formData = new FormData();
+
+Object.keys(payload).forEach((key) => {
+  formData.append(key, payload[key]);
+});
+
+if (imageFiles[taskNo]) {
+  formData.append("file", imageFiles[taskNo]); // ✅ key matches multer.single("file")
+}
+
+const res = await axios.put(
+  `http://localhost:5050/api/task-details/${taskNo}`,
+  formData,
+  {
+    headers: { "Content-Type": "multipart/form-data" },
+  }
+);
+
+
+    if (res.data.success) {
+      toast.success("✅ Task updated successfully");
+      await fetchPendingTasksFromBackend(); // refresh data
+
+      // Clean up form states for this task
+      setCheckedItems((prev) => {
+        const next = { ...prev };
+        delete next[taskNo];
+        return next;
+      });
+      setTaskStatuses((prev) => {
+        const next = { ...prev };
+        delete next[taskNo];
+        return next;
+      });
+      setRemarks((prev) => {
+        const next = { ...prev };
+        delete next[taskNo];
+        return next;
+      });
+      setImageFiles((prev) => {
+        const next = { ...prev };
+        delete next[taskNo];
+        return next;
+      });
+      setRepairCosts((prev) => {
+        const next = { ...prev };
+        delete next[taskNo];
+        return next;
+      });
+      setSoundStatuses((prev) => {
+        const next = { ...prev };
+        delete next[taskNo];
+        return next;
+      });
+      setTemperatures((prev) => {
+        const next = { ...prev };
+        delete next[taskNo];
+        return next;
+      });
+    } else {
+      toast.error(res.data.error || "Failed to update task");
+    }
+  } catch (error) {
+    console.error("❌ Error submitting task:", error);
+    toast.error(error.response?.data?.error || "Error updating task");
+  } finally {
+    setSubmittingTasks((prev) => {
+      const next = { ...prev };
+      delete next[taskNo];
+      return next;
+    });
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -459,58 +516,59 @@ const TaskDetails = () => {
               {/* Details Tab - Column View */}
               {activeTab === "details" && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-2">
-                  {pendingTasks.map((pendingTask, index) => (
-                    <div
-                      key={index}
-                      className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow duration-300"
-                    >
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start">
-                          <h3 className="text-sm font-semibold text-gray-800">
-                            Task No:{" "}
-                            <span className="text-blue-600">
-                              {pendingTask["Task No"]}
-                            </span>
-                          </h3>
-                        </div>
+                {pendingTasks.map((task, index) => (
+  <div
+    key={index}
+    className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow duration-300"
+  >
+    <div className="space-y-3">
+      <div className="flex justify-between items-start">
+        <h3 className="text-sm font-semibold text-gray-800">
+          Task No:{" "}
+          <span className="text-blue-600">
+            {task.task_no || "N/A"}
+          </span>
+        </h3>
+      </div>
 
-                        <div className="text-xs text-gray-600">
-                          <div className="flex justify-between mb-1">
-                            <span>Date:</span>
-                            <span className="text-blue-600">
-                              {new Date(
-                                pendingTask["Task Start Date"]
-                              ).toLocaleDateString("en-IN", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </span>
-                          </div>
+      <div className="text-xs text-gray-600">
+        <div className="flex justify-between mb-1">
+          <span>Date:</span>
+          <span className="text-blue-600">
+            {task.task_start_date
+              ? new Date(task.task_start_date).toLocaleDateString("en-IN", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })
+              : "—"}
+          </span>
+        </div>
 
-                          <div className="flex justify-between mb-1">
-                            <span>Sound Test:</span>
-                            <span className={pendingTask["Need Sound Test"] === "Yes" ? "text-green-600" : "text-gray-600"}>
-                              {pendingTask["Need Sound Test"] === "Yes" ? "Required" : "Not Required"}
-                            </span>
-                          </div>
+        <div className="flex justify-between mb-1">
+          <span>Sound Test:</span>
+          <span className={task.need_sound_test === "Yes" ? "text-green-600" : "text-gray-600"}>
+            {task.need_sound_test === "Yes" ? "Required" : "Not Required"}
+          </span>
+        </div>
 
-                          <div className="flex justify-between">
-                            <span>Temperature:</span>
-                            <span className={pendingTask["Temperature"] === "Yes" ? "text-green-600" : "text-gray-600"}>
-                              {pendingTask["Temperature"] === "Yes" ? "Required" : "Not Required"}
-                            </span>
-                          </div>
-                        </div>
+        <div className="flex justify-between">
+          <span>Temperature:</span>
+          <span className={task.temperature === "Yes" ? "text-green-600" : "text-gray-600"}>
+            {task.temperature === "Yes" ? "Required" : "Not Required"}
+          </span>
+        </div>
+      </div>
 
-                        <div className="border-t pt-2">
-                          <p className="text-xs text-gray-600 leading-relaxed">
-                            {pendingTask["Description"]}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+      <div className="border-t pt-2">
+        <p className="text-xs text-gray-600 leading-relaxed">
+          {task.description || "No description"}
+        </p>
+      </div>
+    </div>
+  </div>
+))}
+
                 </div>
               )}
 
@@ -555,173 +613,153 @@ const TaskDetails = () => {
                         </tr>
                       </thead>
 
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {allRelatedTasks.map((task) => {
-                          const taskNo = task["Task No"];
-                          const isChecked = checkedItems[taskNo] || false;
-                          const taskStatus = taskStatuses[taskNo] || "";
-                          const canSubmit =
-                            isChecked &&
-                            (taskStatus === "Yes" || taskStatus === "No");
-                          const isDone = !!task["Actual Date"];
+                     <tbody className="bg-white divide-y divide-gray-200">
+  {pendingTasks.map((task) => {
+    const taskNo = task.task_no; // ✅ backend key
+    const isChecked = checkedItems[taskNo] || false;
+    const taskStatus = taskStatuses[taskNo] || "";
+    const canSubmit = isChecked && (taskStatus === "Yes" || taskStatus === "No");
+    const isDone = !!task.actual_date;
 
-                          return (
-                            <tr
-                              key={taskNo}
-                              className={`${isDone
-                                ? "bg-green-50 border-green-200 text-gray-500 line-through"
-                                : "bg-white border-gray-200 text-gray-900"
-                                }`}
-                            >
-                              <td className="border px-2 py-1 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => handleCheckboxChange(taskNo)}
-                                  disabled={isDone}
-                                  className="h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
-                                />
-                              </td>
-                              <td className="border px-2 py-1 text-center">
-                                {taskNo}
-                              </td>
-                              <td className="border px-2 py-1 text-center">
-                                {task["Department"]}
-                              </td>
+    return (
+      <tr
+        key={taskNo}
+        className={`${
+          isDone
+            ? "bg-green-50 border-green-200 text-gray-500 line-through"
+            : "bg-white border-gray-200 text-gray-900"
+        }`}
+      >
+        {/* ✅ Checkbox */}
+        <td className="border px-2 py-1 text-center">
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={() => handleCheckboxChange(taskNo)}
+            disabled={isDone}
+            className="h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500"
+          />
+        </td>
 
-                              <td className="border px-2 py-1 text-center">
-                                <select
-                                  value={taskStatus}
-                                  onChange={(e) =>
-                                    handleStatusChange(taskNo, e.target.value)
-                                  }
-                                  disabled={!isChecked || isDone}
-                                  className="border rounded px-2 py-1 w-full"
-                                >
-                                  <option value="">Select</option>
-                                  <option value="Yes">Yes</option>
-                                  <option value="No">No</option>
-                                </select>
-                              </td>
+        {/* ✅ Task No */}
+        <td className="border px-2 py-1 text-center">{task.task_no}</td>
 
-                              <td className="border px-2 py-1 text-center">
-                                <label
-                                  className={`cursor-pointer ${!isChecked || isDone
-                                    ? "text-gray-400"
-                                    : "text-blue-600 hover:underline"
-                                    } ${task["Require Attachment"] === "Yes" &&
-                                    "text-red-600"
-                                    }`}
-                                >
-                                  Upload
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    disabled={!isChecked || isDone}
-                                    onChange={(e) =>
-                                      handleImageUpload(taskNo, e.target.files[0])
-                                    }
-                                  />
-                                  {imageFiles[taskNo] && (
-                                    <span className="ml-1 text-xs">
-                                      ({imageFiles[taskNo].name})
-                                    </span>
-                                  )}
-                                </label>
-                              </td>
+        {/* ✅ Department */}
+        {/* <td className="border px-2 py-1 text-center">{task.department}</td> */}
+        <td className="border px-2 py-1 text-center">
+  {task.department}
+</td>
 
-                              <td className="border px-2 py-1 text-center">
-                                <input
-                                  type="text"
-                                  value={remarks[taskNo] || ""}
-                                  onChange={(e) =>
-                                    handleRemarksChange(taskNo, e.target.value)
-                                  }
-                                  disabled={!isChecked || isDone}
-                                  placeholder="Enter remarks"
-                                  className="outline-none border px-1 py-1 rounded-md w-full"
-                                />
-                              </td>
 
-                              <td className="border px-2 py-1 text-center">
-                                <select
-                                  value={soundStatuses[taskNo] || ""}
-                                  onChange={(e) =>
-                                    handleSoundStatusChange(
-                                      taskNo,
-                                      e.target.value
-                                    )
-                                  }
-                                  disabled={!isChecked || isDone}
-                                  className="border rounded px-2 py-1 w-full"
-                                >
-                                  <option value="">Select</option>
-                                  <option value="Good">Good</option>
-                                  <option value="Bad">Bad</option>
-                                  <option value="Need Repair">Need Repair</option>
-                                  <option value="Ok">Ok</option>
-                                </select>
-                              </td>
+        {/* ✅ Task Status (Dropdown) */}
+        <td className="border px-2 py-1 text-center">
+          <select
+            value={taskStatus}
+            onChange={(e) => handleStatusChange(taskNo, e.target.value)}
+            disabled={!isChecked || isDone}
+            className="border rounded px-2 py-1 w-full"
+          >
+            <option value="">Select</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </td>
 
-                              <td className="border px-2 py-1 text-center">
-                                <input
-                                  type="number"
-                                  value={temperatures[taskNo] || ""}
-                                  onChange={(e) =>
-                                    handleTemperatureChange(
-                                      taskNo,
-                                      e.target.value
-                                    )
-                                  }
-                                  disabled={!isChecked || isDone}
-                                  placeholder="Temperature"
-                                  className="outline-none border px-1 py-1 rounded-md w-full"
-                                />
-                              </td>
+        {/* ✅ Image Upload */}
+        <td className="border px-2 py-1 text-center">
+          <label
+            className={`cursor-pointer ${
+              !isChecked || isDone
+                ? "text-gray-400"
+                : "text-blue-600 hover:underline"
+            }`}
+          >
+            Upload
+            <input
+              type="file"
+              className="hidden"
+              disabled={!isChecked || isDone}
+              onChange={(e) => handleImageUpload(taskNo, e.target.files[0])}
+            />
+            {imageFiles[taskNo] && (
+              <span className="ml-1 text-xs">({imageFiles[taskNo].name})</span>
+            )}
+          </label>
+        </td>
 
-                              <td className="border px-2 py-1 text-center">
-                                <input
-                                  type="number"
-                                  value={repairCosts[taskNo] || ""}
-                                  onChange={(e) =>
-                                    handleRepairCostChange(taskNo, e.target.value)
-                                  }
-                                  disabled={!isChecked || isDone}
-                                  placeholder={
-                                    taskType === "Maintence"
-                                      ? "Maintenace Cost"
-                                      : "Repair Cost"
-                                  }
-                                  className="outline-none border px-1 py-1 rounded-md w-full"
-                                />
-                              </td>
+        {/* ✅ Remarks */}
+        <td className="border px-2 py-1 text-center">
+          <input
+            type="text"
+            value={remarks[taskNo] || task.remarks || ""}
+            onChange={(e) => handleRemarksChange(taskNo, e.target.value)}
+            disabled={!isChecked || isDone}
+            placeholder="Enter remarks"
+            className="outline-none border px-1 py-1 rounded-md w-full"
+          />
+        </td>
 
-                              <td className="border px-2 py-1 text-center">
-                                <button
-                                  className={`px-2 py-1 rounded ${canSubmit &&
-                                    (task["Require Attachment"] !== "Yes" ||
-                                      imageFiles[taskNo])
-                                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                    }`}
-                                  disabled={
-                                    !canSubmit ||
-                                    isDone ||
-                                    submittingTasks[taskNo] ||
-                                    (task["Require Attachment"] === "Yes" &&
-                                      !imageFiles[taskNo])
-                                  }
-                                  onClick={() => handleSubmit(taskNo)}
-                                >
-                                  {submittingTasks[taskNo]
-                                    ? "Submitting..."
-                                    : "Submit"}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
+        {/* ✅ Sound Of Machine */}
+        <td className="border px-2 py-1 text-center">
+          <select
+            value={soundStatuses[taskNo] || task.sound_status || ""}
+            onChange={(e) => handleSoundStatusChange(taskNo, e.target.value)}
+            disabled={!isChecked || isDone}
+            className="border rounded px-2 py-1 w-full"
+          >
+            <option value="">Select</option>
+            <option value="Good">Good</option>
+            <option value="Bad">Bad</option>
+            <option value="Need Repair">Need Repair</option>
+            <option value="Ok">Ok</option>
+          </select>
+        </td>
+
+        {/* ✅ Temperature */}
+        <td className="border px-2 py-1 text-center">
+          <input
+            type="text"
+            value={temperatures[taskNo] || task.temperature || ""}
+            onChange={(e) => handleTemperatureChange(taskNo, e.target.value)}
+            disabled={!isChecked || isDone}
+            placeholder="Temperature"
+            className="outline-none border px-1 py-1 rounded-md w-full"
+          />
+        </td>
+
+        {/* ✅ Repair/Maintenance Cost */}
+        <td className="border px-2 py-1 text-center">
+          <input
+            type="number"
+            value={repairCosts[taskNo] || task.maintenance_cost || ""}
+            onChange={(e) => handleRepairCostChange(taskNo, e.target.value)}
+            disabled={!isChecked || isDone}
+            placeholder={
+              taskType === "Maintence" ? "Maintenance Cost" : "Repair Cost"
+            }
+            className="outline-none border px-1 py-1 rounded-md w-full"
+          />
+        </td>
+
+        {/* ✅ Submit Button */}
+        <td className="border px-2 py-1 text-center">
+          <button
+            className={`px-2 py-1 rounded ${
+              canSubmit
+                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+            disabled={!canSubmit || isDone || submittingTasks[taskNo]}
+            onClick={() => handleSubmit(taskNo)}
+          >
+            {submittingTasks[taskNo] ? "Submitting..." : "Submit"}
+          </button>
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+
                     </table>
                   </div>
                 </div>
@@ -735,7 +773,7 @@ const TaskDetails = () => {
 
                     <div className="space-y-4">
                       {[...completedTasks].reverse().map((task) => (
-                        <div key={task["Task No"]} className="relative pl-10 sm:pl-12">
+                        <div key={task.task_no} className="relative pl-10 sm:pl-12">
                           <div className="absolute left-0 top-1.5 h-6 w-6 sm:h-7 sm:w-7 rounded-full border-2 border-indigo-500 bg-white flex items-center justify-center">
                             <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-indigo-500"></div>
                           </div>
@@ -744,7 +782,7 @@ const TaskDetails = () => {
                               <div className="font-medium text-sm sm:text-base">
                                 {task["Task Type"]} completed{" "}
                                 <span className="text-blue-600">
-                                  ({task["Task No"]})
+                                  ({task.task_no})
                                 </span>
                               </div>
                               <div className="text-xs text-gray-500">
@@ -808,64 +846,63 @@ const TaskDetails = () => {
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {[...completedTasks].reverse().map((task) => {
-                          const fileName = task["File Name"] || "Document";
-                          const fileType = task["File Type"]?.toUpperCase();
+                    <tbody className="bg-white divide-y divide-gray-200">
+  {[...completedTasks].reverse().map((task) => {
+    const fileName = task.file_name || "Document";
+    const fileType = task.file_type?.toUpperCase();
+    const fileUrl = task.image_link;
 
-                          return (
-                            <tr
-                              key={task["Task No"]}
-                              className="hover:bg-gray-50"
-                            >
-                              <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-indigo-600">
-                                {task["Task No"]}
-                              </td>
-                              <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-indigo-600">
-                                {fileName.length > 10 ? `${fileName.slice(0, 10)}...` : fileName}
-                              </td>
-                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
-                                {fileType}
-                              </td>
-                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
-                                {task["Doer Name"]}
-                              </td>
-                              <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
-                                {new Date(
-                                  task["Task Start Date"]
-                                ).toLocaleDateString()}
-                              </td>
-                              <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                {task["Image Link"] ? (
-                                  <a
-                                    href={task["Image Link"]}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-indigo-600 hover:text-indigo-900 flex items-center justify-end gap-1"
-                                  >
-                                    <Download size={16} />
-                                    Download
-                                  </a>
-                                ) : (
-                                  <span className="text-gray-400 text-xs">No file</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
+    return (
+      <tr key={task.task_no} className="hover:bg-gray-50">
+        <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-indigo-600">
+          {task.task_no}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+          {fileName.length > 15 ? `${fileName.slice(0, 15)}...` : fileName}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+          {fileType || "—"}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+          {task.doer_name || "—"}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">
+          {task.task_start_date
+            ? new Date(task.task_start_date).toLocaleDateString("en-IN")
+            : "—"}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
+          {fileUrl ? (
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:text-indigo-900 flex items-center justify-end gap-1"
+            >
+              <Download size={16} />
+              Download
+            </a>
+          ) : (
+            <span className="text-gray-400 text-xs">No file</span>
+          )}
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+
                     </table>
                   </div>
 
                   {/* Mobile Card View */}
                   <div className="lg:hidden space-y-3 p-2">
                     {[...completedTasks].reverse().map((task) => {
-                      const fileName = task["File Name"] || "Document";
-                      const fileType = task["File Type"]?.toUpperCase();
+                     const fileName = task.file_name || "Document";
+const fileType = task.file_type?.toUpperCase();
 
                       return (
                         <div
-                          key={task["Task No"]}
+                          key={task.task_no}
                           className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow"
                         >
                           <div className="space-y-3">
@@ -873,7 +910,7 @@ const TaskDetails = () => {
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
                                 <h3 className="font-semibold text-indigo-600 text-sm">
-                                  {task["Task No"]}
+                                  {task.task_no}
                                 </h3>
                                 <p className="text-xs text-gray-500 mt-1">
                                   Uploaded by: {task["Doer Name"]}
@@ -905,7 +942,11 @@ const TaskDetails = () => {
                               <div className="col-span-2">
                                 <span className="font-medium text-gray-500">Date:</span>
                                 <p className="text-gray-800">
-                                  {new Date(task["Task Start Date"]).toLocaleDateString()}
+                                  {/* {new Date(task["Task Start Date"]).toLocaleDateString()} */}
+                                  {task.task_start_date
+  ? new Date(task.task_start_date).toLocaleDateString("en-IN")
+  : "—"}
+
                                 </p>
                               </div>
                             </div>

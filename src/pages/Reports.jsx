@@ -102,93 +102,25 @@ const Reports = () => {
   // const monthlyRepairCosts = getMonthlyRepairCosts();
   const monthlyMaintenanceCosts = getMonthlyMaintenanceCosts();
 
-  const SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
-  const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
+  // const SCRIPT_URL =
+  //   "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
+  // const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
 
-  const fetchMaintenceTasks = async () => {
-    setLoadingTasks(true);
-    try {
-      const HistoryData = await axios.get(
-        `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=Maitenance%20Task%20Assign`
-      );
-
-      // console.log("histr", HistoryData);
-
-      const formattedHistoryData = formatSheetData(HistoryData?.data?.table);
-
-      const taskStartDates = formattedHistoryData
-        .map((task) => new Date(task["Task Start Date"]).toLocaleDateString())
-        .filter((date) => !!date);
-
-      const temperatureData = formattedHistoryData.map(
-        (task) => task["Temperature Status"]
-      );
-
-      const temperatureGraphData = taskStartDates.map((date, index) => ({
-        time: date,
-        temp: Number(temperatureData[index]) || 0, // fallback to 0 if empty or invalid
-      }));
-
-      // console.log("temperatureGraphData", temperatureGraphData);
-
-      setTemperatureGraphData(temperatureGraphData);
-
-      // filter tasks for the current machine
-      const filteredTasks = formattedHistoryData.filter(
-        (task) => task["Actual Date"] !== ""
-      );
-
-      setHistoryMaitenenceTasks(filteredTasks);
-
-      // total purchase prise
-      const totalPriseCost = filteredTasks.reduce((sum, task) => {
-        const cost = parseFloat(task["Purchase Price"]) || 0;
-        return sum + cost;
-      }, 0);
-
-      setTotalMaintenancePurchasePrise(totalPriseCost);
-
-      // for next maintenance date
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const upcomingTask = filteredTasks.find((task) => {
-        const dateOnlyStr = task["Task Start Date"].split(" ")[0];
-        const taskDate = new Date(dateOnlyStr);
-        return taskDate > today;
-      });
-
-      // console.log("upcomingTask", upcomingTask);
-      setNextMaintenanceDate(upcomingTask);
-
-      // total maintenance cost
-      const totalCost = filteredTasks.reduce((sum, task) => {
-        const cost = parseFloat(task["Maintenace Cost"]) || 0;
-        return sum + cost;
-      }, 0);
-
-      // console.log("totalCost", totalCost);
-      setTotalMaintenanceCost(totalCost);
-
-      // percentage of maintenance cost to purchase price
-      const maintenanceToPurchaseRatio = (totalCost * 100) / totalPriseCost;
-      setPercentMaintenanceToPurchase(maintenanceToPurchaseRatio);
-
-      //  for Maintenance count
-      const maintenanceCount = filteredTasks.length;
-      setMaintenanceCount(maintenanceCount);
-
-      // for maintenance health score
-      const healthScore = Math.floor(
-        (filteredTasks.length * 100) / formattedHistoryData.length
-      );
-      setMetainanceHealthScore(healthScore);
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-    } finally {
-      setLoadingTasks(false);
+const fetchMaintenceTasks = async () => {
+  setLoadingTasks(true);
+  try {
+    const res = await axios.get("http://localhost:5050/api/reports/maintenance-costs?year=2025");
+    if (res.data.success) {
+      const backendData = res.data.data;
+      setHistoryMaitenenceTasks(backendData);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching backend report:", error);
+  } finally {
+    setLoadingTasks(false);
+  }
+};
+
 
   useEffect(() => {
     fetchMaintenceTasks();
@@ -226,16 +158,11 @@ const Reports = () => {
             </h2>
             <div className="h-60 sm:h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyMaintenanceCosts}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value) => `₹${value.toLocaleString()}`}
-                  />
-                  <Legend />
-                  <Bar dataKey="cost" name="Cost" fill="#4F46E5" />
-                </BarChart>
+               <BarChart data={historyMaitenenceTasks}>
+  <XAxis dataKey="month" />
+  <Bar dataKey="cost" fill="#4F46E5" />
+</BarChart>
+
               </ResponsiveContainer>
             </div>
           </div>

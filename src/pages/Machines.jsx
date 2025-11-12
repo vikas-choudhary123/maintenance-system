@@ -29,87 +29,86 @@ const Machines = () => {
   const [showResultsCount, setShowResultsCount] = useState(false);
   const [resultsCount, setResultsCount] = useState(0);
 
-  const SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
-  const SHEET_NAME = "FormResponses";
-  const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
+  // const SCRIPT_URL =
+  //   "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
+  // const SHEET_NAME = "FormResponses";
+  // const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
 
   const [loaderSheetData, setLoaderSheetData] = useState(false);
 
-  const fetchSheetData = async () => {
-    try {
-      setLoaderSheetData(true);
-      const res = await fetch(
-        `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=${SHEET_NAME}`
-      );
-      const result = await res.json();
+const API_URL = "http://localhost:5050/api/machines";
 
-      if (result.success && result.table) {
-        const headers = result.table.cols.map((col) => col.label);
-        const rows = result.table.rows;
+const fetchSheetData = async () => {
+  try {
+    setLoaderSheetData(true);
+    const res = await fetch(API_URL);
+    const result = await res.json();
 
-        const formattedRows = rows.map((rowObj) => {
-          const row = rowObj.c;
-          const rowData = {};
-          row.forEach((cell, i) => {
-            rowData[headers[i]] = cell.v;
-          });
-          return rowData;
-        });
+    if (result.success) {
+      // ✅ Re-map backend data to UI-friendly format
+      const formatted = result.data.map((item) => ({
+        "Machine Name": item.machine_name,
+        "Serial No": item.serial_no,
+        "Department": item.department,
+        "Warranty Expiration": item.warranty_expiration,
+        "Purchase Date": item.purchase_date,
+        "Vendor": item.vendor,
+        "Purchase Price": item.purchase_price,
+      }));
 
-        setSheetData(formattedRows);
-      } else {
-        console.error("Server error:", result.message || result.error);
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoaderSheetData(false);
+      setSheetData(formatted);
+    } else {
+      console.error("Error fetching machines:", result.error);
     }
-  };
+  } catch (err) {
+    console.error("Fetch error:", err);
+  } finally {
+    setLoaderSheetData(false);
+  }
+};
 
-  const fetchMasterSheetData = async () => {
-    const MASTER_SHEET_NAME = "Master";
-    try {
-      setLoaderMasterSheetData(true);
-      const res = await fetch(
-        `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=${MASTER_SHEET_NAME}`
-      );
-      const result = await res.json();
 
-      if (result.success && result.table) {
-        const headers = result.table.cols.map((col) => col.label);
-        const rows = result.table.rows || [];
 
-        const formattedRows = rows.map((rowObj) => {
-          const row = rowObj.c || [];
-          const rowData = {};
-          row.forEach((cell, i) => {
-            if (headers[i]) {
-              rowData[headers[i]] = cell ? cell.v : null;
-            }
-          });
-          return rowData;
+const fetchMasterSheetData = async () => {
+  try {
+    setLoaderMasterSheetData(true);
+    const res = await fetch("http://localhost:5050/api/master"); // 👈 new backend route
+    const result = await res.json();
+
+    if (result.success && result.table) {
+      const headers = result.table.cols.map((col) => col.label);
+      const rows = result.table.rows || [];
+
+      const formattedRows = rows.map((rowObj) => {
+        const row = rowObj.c || [];
+        const rowData = {};
+        row.forEach((cell, i) => {
+          if (headers[i]) {
+            rowData[headers[i]] = cell ? cell.v : null;
+          }
         });
+        return rowData;
+      });
 
-        const departments = formattedRows
-          .map((row) => {
-            const columnBValue = Object.values(row)[1];
-            return columnBValue;
-          })
-          .filter((dept) => dept && dept.toString().trim() !== "")
-          .filter((dept, index, self) => self.indexOf(dept) === index)
-          .sort();
+      const departments = formattedRows
+        .map((row) => {
+          const columnBValue = Object.values(row)[1];
+          return columnBValue;
+        })
+        .filter((dept) => dept && dept.toString().trim() !== "")
+        .filter((dept, index, self) => self.indexOf(dept) === index)
+        .sort();
 
-        setDepartmentOptions(departments);
-      }
-    } catch (err) {
-      console.error("Master sheet fetch error:", err);
-      setDepartmentOptions([]);
-    } finally {
-      setLoaderMasterSheetData(false);
+      setDepartmentOptions(departments);
     }
-  };
+  } catch (err) {
+    console.error("Master data fetch error:", err);
+    setDepartmentOptions([]);
+  } finally {
+    setLoaderMasterSheetData(false);
+  }
+};
+
 
   useEffect(() => {
     fetchSheetData();

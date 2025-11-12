@@ -19,6 +19,10 @@ const NewMachine = () => {
   const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
   const FOLDER_ID = "1ZMn-mLYxW3_RW4tCgMgesSet6ShgT1kS";
 
+
+const API_URL = "http://localhost:5050/api/machines";
+
+
   const [formValues, setFormValues] = useState({
     serialNumber: "",
     machineName: "",
@@ -100,54 +104,26 @@ const NewMachine = () => {
   }, [SCRIPT_URL, SHEET_Id, SHEET_NAME]);
 
   // Fetch department options
-  const fetchMasterSheetData = useCallback(async () => {
-    const MASTER_SHEET_NAME = "Master";
-    try {
-      setLoaderMasterSheetData(true);
-      const result = await safeFetch(
-        `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=${MASTER_SHEET_NAME}`
-      );
+const fetchMasterSheetData = useCallback(async () => {
+  try {
+    setLoaderMasterSheetData(true);
+    const res = await fetch("http://localhost:5050/api/departments");
+    const result = await res.json();
 
-      if (result && result.success && result.table) {
-        const headers = result.table.cols.map((col) => col.label);
-        const rows = result.table.rows || [];
-
-        // Transform rows into objects with key-value pairs
-        const formattedRows = rows.map((rowObj) => {
-          const row = rowObj.c || [];
-          const rowData = {};
-          row.forEach((cell, i) => {
-            if (headers[i]) {
-              rowData[headers[i]] = cell ? cell.v : null;
-            }
-          });
-          return rowData;
-        });
-
-        // Extract Department data - safely get unique departments
-        const departments = formattedRows
-          .map((row) => {
-            // Get the second column (index 1) which should be column B
-            const columnBValue = Object.values(row)[1];
-            return columnBValue;
-          })
-          .filter((dept) => dept && dept.toString().trim() !== "")
-          .filter((dept, index, self) => self.indexOf(dept) === index) // Remove duplicates
-          .sort(); // Sort alphabetically
-
-        setDepartmentOptions(departments);
-      } else {
-        console.error("Invalid master sheet response:", result);
-        setDepartmentOptions([]);
-      }
-    } catch (err) {
-      console.error("Master sheet fetch error:", err);
+    if (result.success && Array.isArray(result.data)) {
+      setDepartmentOptions(result.data);
+    } else {
       setDepartmentOptions([]);
       toast.error("Failed to load department options");
-    } finally {
-      setLoaderMasterSheetData(false);
     }
-  }, [SCRIPT_URL, SHEET_Id]);
+  } catch (error) {
+    console.error("Fetch department error:", error);
+    toast.error("Error fetching department list");
+  } finally {
+    setLoaderMasterSheetData(false);
+  }
+}, []);
+
 
   // Generate serial number safely
   const generateSerialNumber = useCallback((records, machineName) => {
@@ -316,91 +292,100 @@ const NewMachine = () => {
   };
 
   // Safe form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!validateForm()) {
-      return;
+  if (!validateForm()) return;
+
+  try {
+    setLoaderSubmit(true);
+
+    let userManualUrl = "";
+    let purchaseBillUrl = "";
+
+    // ✅ Upload files first (if selected)
+    const uploadFile = async (file) => {
+      const fileForm = new FormData();
+      fileForm.append("file", file);
+
+      const uploadRes = await fetch("http://localhost:5050/api/upload", {
+  method: "POST",
+  body: fileForm,
+});
+
+
+      const uploadData = await uploadRes.json();
+      return uploadData?.url || ""; // backend should return uploaded file URL
+    };
+
+    if (userManualFile) {
+      userManualUrl = await uploadFile(userManualFile);
+    }
+    if (purchaseBillFile) {
+      purchaseBillUrl = await uploadFile(purchaseBillFile);
     }
 
-    try {
-      setLoaderSubmit(true);
+    // ✅ Now prepare final JSON payload
+    const payload = {
+      serial_no: formValues.serialNumber,
+      machine_name: formValues.machineName,
+      model_no: formValues.model,
+      manufacturer: formValues.manufacturer,
+      department: formValues.department,
+      location: formValues.location,
+      purchase_date: formValues.purchaseDate,
+      purchase_price: formValues.purchasePrice,
+      vendor: formValues.vendor,
+      warranty_expiration: formValues.warrantyExpiration,
+      maintenance_schedule: JSON.stringify(formValues.maintenanceSchedule),
+      initial_maintenance_date: formValues.initialMaintenanceDate,
+      user_manual: userManualUrl,
+      purchase_bill: purchaseBillUrl,
+      notes: formValues.note,
+      tag_no: formValues.tagNo,
+      user_allot: formValues.userAllot,
+    };
 
-      // Upload files in parallel
-      const [userManualUrl, purchaseBillUrl] = await Promise.all([
-        userManualFile ? uploadFileToDrive(userManualFile) : Promise.resolve(""),
-        purchaseBillFile ? uploadFileToDrive(purchaseBillFile) : Promise.resolve(""),
-      ]);
+    // ✅ Send JSON data to backend
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-      const payload = {
-        action: "insert",
-        sheetName: SHEET_NAME,
-        "Serial No": formValues.serialNumber,
-        "Machine Name": formValues.machineName,
-        "Model No": formValues.model,
-        Manufacturer: formValues.manufacturer,
-        Department: formValues.department,
-        Location: formValues.location,
-        "Purchase Date": formatDateToDDMMYYYY(formValues.purchaseDate),
-        "Purchase Price": formValues.purchasePrice,
-        Vendor: formValues.vendor,
-        "Warranty Expiration": formatDateToDDMMYYYY(formValues.warrantyExpiration),
-        "Maintenance Schedule": JSON.stringify(formValues.maintenanceSchedule),
-        "Initial Maintenance Date": formatDateToDDMMYYYY(formValues.initialMaintenanceDate),
-        "User Manual": userManualUrl,
-        "Purchase Bill": purchaseBillUrl,
-        Notes: formValues.note,
-        "Tag No": formValues.tagNo, // New field for column P
-        "User Allot": formValues.userAllot, // New field for column Q
-      };
+    const result = await response.json();
 
-      const result = await safeFetch(SCRIPT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams(payload).toString(),
+    if (result.success) {
+      toast.success("✅ Machine added successfully!");
+      setFormValues({
+        serialNumber: "",
+        machineName: "",
+        model: "",
+        manufacturer: "",
+        department: "",
+        location: "",
+        purchaseDate: "",
+        purchasePrice: "",
+        vendor: "",
+        warrantyExpiration: "",
+        maintenanceSchedule: [],
+        initialMaintenanceDate: "",
+        note: "",
+        tagNo: "",
+        userAllot: "",
       });
-
-      if (result && result.success) {
-        toast.success("✅ Machine added successfully!");
-
-        // Reset form
-        setFormValues({
-          machineName: "",
-          serialNumber: "",
-          model: "",
-          manufacturer: "",
-          department: "",
-          location: "",
-          purchaseDate: "",
-          purchasePrice: "",
-          vendor: "",
-          warrantyExpiration: "",
-          maintenanceSchedule: [],
-          initialMaintenanceDate: "",
-          note: "",
-          tagNo: "", // Reset new field
-          userAllot: "", // Reset new field
-        });
-
-        setUserManualFile(null);
-        setPurchaseBillFile(null);
-
-        // Navigate back to machines list
-        setTimeout(() => {
-          navigate("/machines");
-        }, 1000);
-      } else {
-        toast.error("❌ Failed to add machine: " + (result?.error || "Unknown error"));
-      }
-    } catch (error) {
-      console.error("Submit error:", error);
-      toast.error("❌ Network error. Please try again.");
-    } finally {
-      setLoaderSubmit(false);
+      setTimeout(() => navigate("/machines"), 1000);
+    } else {
+      toast.error("❌ Failed to add machine");
     }
-  };
+  } catch (error) {
+    console.error("Submit error:", error);
+    toast.error("❌ Server error");
+  } finally {
+    setLoaderSubmit(false);
+  }
+};
+
 
   return (
     <div className="space-y-6">
@@ -692,7 +677,8 @@ const NewMachine = () => {
                           type="checkbox"
                           id={option.id}
                           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                          checked={formValues.maintenanceSchedule.includes(option.id)}
+                          // checked={formValues.maintenanceSchedule.includes(option.id)}
+                          checked={(formValues.maintenanceSchedule || []).includes(option.id)}
                           onChange={handleCheckboxChange}
                         />
                         <label

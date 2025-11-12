@@ -30,129 +30,64 @@ import axios from "axios";
 
 
 const Dashboard = () => {
+
+  // const SCRIPT_URL =
+  //   "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
+  // const SHEET_NAME = "FormResponses";
+  // const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
+
   const [sheetDate, setSheetData] = useState([]);
+const [maintenanceTasks, setMaintenanceTasks] = useState([]);
+const [repairTasks, setRepairTasks] = useState([]);
+const [totalMaintenanceTasksCompleted, setTotalMaintenanceTasksCompleted] = useState(0);
+const [totalMaintenanceTasksOverdue, setTotalMaintenanceTasksOverdue] = useState(0);
+const [totalRepairTasksCompleted, setTotalRepairTasksCompleted] = useState(0);
+const [totalRepairTasksOverdue, setTotalRepairTasksOverdue] = useState(0);
+const [repairCompletedTasks, setRepairCompletedTasks] = useState([]);
+const [maintenanceCompletedTasks, setMaintenanceCompletedTasks] = useState([]);
+const [maintenanceCostData, setMaintenanceCostData] = useState([]);
+const [departmentCostData, setDepartmentCostData] = useState([]);
+const [frequentRepairData, setFrequentRepairData] = useState([]);
+const [totalCost, setTotalCost] = useState(0);
 
-  const SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
-  const SHEET_NAME = "FormResponses";
-  const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
+// const BACKEND_URL = "http://localhost:5050/api/dashboard";
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
 
-  const [loaderSheetData, setLoaderSheetData] = useState(false);
-  const [loadingTasks, setLoadingTasks] = useState(false);
-  const [maintenanceTasks, setMaintenanceTasks] = useState([]);
-  const [repairTasks, setRepairTasks] = useState([]);
-  const [totalMaintenanceTasksCompleted, setTotalMaintenanceTasksCompleted] =
-    useState(0);
-  const [totalMaintenanceTasksOverdue, setTotalMaintenanceTasksOverdue] =
-    useState(0);
-  const [totalRepairTasksCompleted, setTotalRepairTasksCompleted] = useState(0);
-  const [totalRepairTasksOverdue, setTotalRepairTasksOverdue] = useState(0);
-  const [repairCompletedTasks, setRepairCompletedTasks] = useState([]);
-  const [maintenanceCompletedTasks, setMaintenanceCompletedTasks] = useState(
-    []
-  );
 
-  // console.log("sheetData", sheetDate);
-  console.log("repairCompletedTasks", repairCompletedTasks);
-  console.log("maintenanceCompletedTasks", maintenanceCompletedTasks);
-  // console.log("totalMaintenanceTasksCompleted", totalMaintenanceTasksCompleted);
-  // console.log("totalRepairTasksCompleted", totalRepairTasksCompleted);
-
-  const fetchSheetData = async () => {
+useEffect(() => {
+  const fetchDashboardData = async () => {
     try {
-      setLoaderSheetData(true);
-      const res = await fetch(
-        `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=${SHEET_NAME}`
-      );
-      const result = await res.json();
+     const [statsRes, machineCostRes, deptRes, freqRes] = await Promise.all([
+  axios.get(`${BACKEND_URL}/api/dashboard/stats`),
+  axios.get(`${BACKEND_URL}/api/dashboard/maintenance-costs`),
+  axios.get(`${BACKEND_URL}/api/dashboard/department-costs`),
+  axios.get(`${BACKEND_URL}/api/dashboard/frequencies`)
+]);
 
-      // console.log("data", result);
 
-      if (result.success && result.table) {
-        const headers = result.table.cols.map((col) => col.label); // Extract headers
-        const rows = result.table.rows;
+      const stats = statsRes.data.data;
 
-        // Transform rows into objects with key-value pairs
-        const formattedRows = rows.map((rowObj) => {
-          const row = rowObj.c;
-          const rowData = {};
-          row.forEach((cell, i) => {
-            rowData[headers[i]] = cell.v; // you can also use `cell.f` if you want formatted version
-          });
-          return rowData;
-        });
+      // ✅ Set summary metrics
+      setSheetData(new Array(stats.total_machines).fill(0));
+      setMaintenanceTasks(new Array(stats.total_tasks).fill(0));
+      setTotalMaintenanceTasksCompleted(stats.completed_tasks);
+      setTotalMaintenanceTasksOverdue(stats.overdue_tasks);
+      setTotalCost(stats.total_maintenance_cost);
 
-        setSheetData(formattedRows); // Set formatted data into state
-      } else {
-        console.error("Server error:", result.message || result.error);
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoaderSheetData(false);
+      // ✅ Chart data
+      setMaintenanceCostData(machineCostRes.data.data);
+      setDepartmentCostData(deptRes.data.data);
+      setFrequentRepairData(freqRes.data.data);
+
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
     }
   };
 
-  useEffect(() => {
-    fetchSheetData();
-  }, []);
+  fetchDashboardData();
+}, []);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      setLoadingTasks(true);
-      try {
-        const [maintenanceRes, repairRes] = await Promise.all([
-          axios.get(
-            `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=Maitenance%20Task%20Assign`
-          ),
-          axios.get(
-            `${SCRIPT_URL}?sheetId=${SHEET_Id}&sheet=Repair%20Task%20Assign`
-          ),
-        ]);
 
-        const formattedMaintenance = formatSheetData(maintenanceRes.data.table);
-        const formattedRepair = formatSheetData(repairRes.data.table);
-
-        // console.log( "formattedRepair", formattedRepair);
-
-        setMaintenanceTasks(formattedMaintenance);
-        setRepairTasks(formattedRepair);
-
-        // Calculate total completed tasks
-        const maintenanceCompleted = formattedMaintenance.filter(
-          (task) => task["Actual Date"] !== ""
-        );
-        setTotalMaintenanceTasksCompleted(maintenanceCompleted.length);
-        setMaintenanceCompletedTasks(maintenanceCompleted);
-
-        const repairCompleted = formattedRepair.filter(
-          (task) => task["Actual Date"] !== ""
-        );
-        setTotalRepairTasksCompleted(repairCompleted.length);
-        setRepairCompletedTasks(repairCompleted);
-
-        // Overdue tasks logic - Task Start Date before today and Actual Date is null
-        const today = new Date();
-        const maintenanceOverdue = formattedMaintenance.filter((task) => {
-          const taskStartDate = new Date(task["Task Start Date"]);
-          return task["Task Start Date"] && !task["Actual Date"] && taskStartDate < today;
-        }).length;
-        setTotalMaintenanceTasksOverdue(maintenanceOverdue);
-
-        const repairOverdue = formattedRepair.filter((task) => {
-          const taskStartDate = new Date(task["Task Start Date"]);
-          return task["Task Start Date"] && !task["Actual Date"] && taskStartDate < today;
-        }).length;
-        setTotalRepairTasksOverdue(repairOverdue);
-      } catch (error) {
-        console.error("Error fetching tasks:", error);
-      } finally {
-        setLoadingTasks(false);
-      }
-    };
-
-    fetchTasks();
-  }, []);
 
   const formatSheetData = (sheetData) => {
     // Add null check to prevent the error
@@ -203,7 +138,7 @@ const Dashboard = () => {
     }));
   };
 
-  const maintenanceCostData = getMaintenanceCostData();
+  // const maintenanceCostData = getMaintenanceCostData();
   // console.log("repairVsPurchaseData", repairVsPurchaseData);
 
   // First, create a map to accumulate costs by department
@@ -232,12 +167,12 @@ const Dashboard = () => {
   });
 
   // Convert the map to the desired array format
-  const departmentCostData = Object.keys(departmentCostMap).map(
-    (department) => ({
-      name: department,
-      cost: departmentCostMap[department],
-    })
-  );
+  // const departmentCostData = Object.keys(departmentCostMap).map(
+  //   (department) => ({
+  //     name: department,
+  //     cost: departmentCostMap[department],
+  //   })
+  // );
 
   // console.log('departmentCostData', departmentCostData);
 
@@ -261,10 +196,10 @@ const Dashboard = () => {
   });
 
   // Convert to the desired array format
-  const frequentRepairData = Object.keys(frequencyCounts).map((frequency) => ({
-    name: frequency,
-    repairs: frequencyCounts[frequency],
-  }));
+  // const frequentRepairData = Object.keys(frequencyCounts).map((frequency) => ({
+  //   name: frequency,
+  //   repairs: frequencyCounts[frequency],
+  // }));
 
   // Calculate total cost from Maintenance Cost column (AD)
   const totalMaintenanceCost = maintenanceCompletedTasks.reduce((sum, task) => {
@@ -275,7 +210,8 @@ const Dashboard = () => {
     return sum + (task["Repair Cost"] || 0);
   }, 0);
 
-  const totalCost = totalMaintenanceCost + totalRepairCost;
+
+
 
   return (
     <div className="space-y-6">
