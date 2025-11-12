@@ -148,7 +148,7 @@ const useAuthStore = create(
       login: async (username, password) => {
         set({ isLoading: true });
         try {
-          const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+          const res = await fetch(`${BACKEND_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password }),
