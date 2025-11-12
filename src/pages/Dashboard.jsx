@@ -51,18 +51,20 @@ const [frequentRepairData, setFrequentRepairData] = useState([]);
 const [totalCost, setTotalCost] = useState(0);
 
 // const BACKEND_URL = "http://localhost:5050/api/dashboard";
-const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
+// const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 
 useEffect(() => {
   const fetchDashboardData = async () => {
     try {
-     const [statsRes, machineCostRes, deptRes, freqRes] = await Promise.all([
-  axios.get(`${BACKEND_URL}dashboard/stats`),
-  axios.get(`${BACKEND_URL}dashboard/maintenance-costs`),
-  axios.get(`${BACKEND_URL}dashboard/department-costs`),
-  axios.get(`${BACKEND_URL}dashboard/frequencies`)
+    const [statsRes, machineCostRes, deptRes, freqRes] = await Promise.all([
+  axios.get(`${BACKEND_URL}/dashboard/stats`),
+  axios.get(`${BACKEND_URL}/dashboard/maintenance-costs`),
+  axios.get(`${BACKEND_URL}/dashboard/department-costs`),
+  axios.get(`${BACKEND_URL}/dashboard/frequencies`)
 ]);
+
 
 
       const stats = statsRes.data.data;

@@ -31,16 +31,21 @@ const Tasks = () => {
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
 
-  const SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
-  const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
+  // const SCRIPT_URL =
+  //   "https://script.google.com/macros/s/AKfycbzudKkY63zbthWP_YcfyF-HnUOObG_XM9aS2JDCmTmcYLaY1OQq7ho6i085BXxu9N2E7Q/exec";
+  // const SHEET_Id = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
+
+
+  const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+
 
   // Fetch departments from Master sheet column B
   // Fetch departments from backend API
   const fetchDepartments = async () => {
     setLoadingDepartments(true);
     try {
-      const response = await axios.get("http://18.60.212.185:5050/api/departments");
+      // const response = await axios.get("http://18.60.212.185:5050/api/departments");
+      const response = await axios.get(`${BACKEND_URL}/departments`);
       const departments = response.data;
       
       if (departments && departments.length > 0) {
@@ -70,7 +75,8 @@ useEffect(() => {
 
     try {
       // Fetch pending tasks from your backend
-      const pendingTasksResponse = await axios.get("http://18.60.212.185:5050/api/tasks/pending");
+      // const pendingTasksResponse = await axios.get("http://18.60.212.185:5050/api/tasks/pending");
+      const pendingTasksResponse = await axios.get(`${BACKEND_URL}/tasks/pending`);
       const responseData = pendingTasksResponse.data;
 
       console.log('Full backend response:', responseData);

@@ -74,6 +74,8 @@ const Reports = () => {
   const [percentMaintenanceToPurchase, setPercentMaintenanceToPurchase] =
     useState(0);
 
+    const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+
   const getMonthlyMaintenanceCosts = () => {
     const monthlyCosts = {};
 
@@ -109,7 +111,8 @@ const Reports = () => {
 const fetchMaintenceTasks = async () => {
   setLoadingTasks(true);
   try {
-    const res = await axios.get("http://18.60.212.185:5050/api/reports/maintenance-costs?year=2025");
+    // const res = await axios.get("http://18.60.212.185:5050/api/reports/maintenance-costs?year=2025");
+    const res = await axios.get(`${BACKEND_URL}/reports/maintenance-costs?year=2025`);
     if (res.data.success) {
       const backendData = res.data.data;
       setHistoryMaitenenceTasks(backendData);

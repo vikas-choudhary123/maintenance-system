@@ -34,6 +34,8 @@ const TaskDetails = () => {
   // const SHEET_ID = "15SBKzTJKzaqhjPI5yt5tKkrd3tzNuhm_Q9-iDO8n0B0";
   // const FOLDER_ID = "1ZhOeYs23CGHCs6REfMGVPgMGG3PQ2jzp";
 
+  const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+
 const fetchPendingTasksFromBackend = async () => {
   try {
     setLoading(true);
@@ -43,8 +45,12 @@ const fetchPendingTasksFromBackend = async () => {
     const encodedMachine = encodeURIComponent(machine);
     const encodedSerial = encodeURIComponent(serialNo);
 
+    // const res = await axios.get(
+    //   `http://18.60.212.185:5050/api/task-details/pending/${encodedMachine}?serialNo=${encodedSerial}`
+    // );
+
     const res = await axios.get(
-      `http://18.60.212.185:5050/api/task-details/pending/${encodedMachine}?serialNo=${encodedSerial}`
+      `${BACKEND_URL}/task-details/pending/${encodedMachine}?serialNo=${encodedSerial}`
     );
 
     if (res.data.success) {
@@ -70,9 +76,7 @@ const fetchCompletedTasksFromBackend = async () => {
     const encodedMachine = encodeURIComponent(machine);
     const encodedSerial = encodeURIComponent(serialNo);
 
-    const res = await axios.get(
-      `http://18.60.212.185:5050/api/task-details/completed/${encodedMachine}?serialNo=${encodedSerial}`
-    );
+    const res = await axios.get(`${BACKEND_URL}/task-details/completed/${encodedMachine}?serialNo=${encodedSerial}`);
 
     if (res.data.success) {
       console.log("✅ Completed tasks:", res.data.data);
@@ -350,13 +354,22 @@ if (imageFiles[taskNo]) {
   formData.append("file", imageFiles[taskNo]); // ✅ key matches multer.single("file")
 }
 
+// const res = await axios.put(
+//   `http://18.60.212.185:5050/api/task-details/${taskNo}`,
+//   formData,
+//   {
+//     headers: { "Content-Type": "multipart/form-data" },
+//   }
+// );
+
 const res = await axios.put(
-  `http://18.60.212.185:5050/api/task-details/${taskNo}`,
+  `${BACKEND_URL}/task-details/${taskNo}`,
   formData,
   {
     headers: { "Content-Type": "multipart/form-data" },
   }
 );
+
 
 
     if (res.data.success) {
